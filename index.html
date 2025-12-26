@@ -1,0 +1,104 @@
+﻿<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>One-Tap VPN | Sicher unterwegs</title>
+  <meta name="description" content="Mehr Privatsphäre in Sekunden – One-Tap VPN für Android." />
+  <link rel="stylesheet" href="index.css" />
+</head>
+<body>
+  <div class="bg">
+    <canvas id="bgParticles"></canvas>
+    <video class="bg-video" autoplay muted loop playsinline src="bg.mp4"></video>
+    <div class="bg-mesh"></div>
+    <div class="bg-rays"></div>
+    <div class="bg-aurora"></div>
+    <div class="bg-stars"></div>
+    <div class="bg-overlay"></div>
+    <div class="floating-words" aria-hidden="true"></div>
+  </div>
+
+  <main class="wrap">
+    <header class="topbar">
+      <div class="brand">
+        <span class="dot"></span>
+        <div class="brand-text">
+          <div class="brand-name">Online-Sicherheits Guide</div>
+          <div class="brand-sub">Empfohlen für Android</div>
+        </div>
+      </div>
+    </header>
+
+    <section class="cta-hero">
+      <div class="cta-stage">
+        <h1>One-Tap VPN</h1>
+        <p class="cta-sub">Mehr Privatsphäre in Sekunden.</p>
+        <div class="cta-highlights" aria-label="Schlüsselvorteile">
+          <span class="ch-item">Sichere Verbindung</span>
+          <span class="ch-item">Online-Sicherheit</span>
+          <span class="ch-item">Datenschutz im Fokus</span>
+        </div>
+        <a id="ctaMain" class="cta-button" href="https://singingfiles.com/show.php?l=0&u=2480508&id=71593"><span class="cta-label">VPN öffnen</span></a>
+        <div class="trust">Einfach: Installieren → Öffnen → Verbinden</div>
+      </div>
+
+      <div class="hero-art hero-left" aria-hidden="true">
+        <div class="device-card">
+          <div class="device-glow"></div>
+          <img class="device-img" src="device.png" alt="" />
+          <div class="device-shine"></div>
+        </div>
+      </div>
+      <div class="hero-art hero-right" aria-hidden="true">
+        <div class="device-card">
+          <div class="device-glow"></div>
+          <img class="device-img" src="protocols.png" alt="" />
+          <div class="device-shine"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="quiz" aria-label="VPN Präferenzen">
+      <div class="quiz-head">
+        <div class="quiz-eyebrow">Schneller Check</div>
+        <h2>Wofür brauchst du VPN am meisten?</h2>
+        <p>3 kurze Fragen – optional, hilft bei der Empfehlung.</p>
+      </div>
+      <div class="quiz-card">
+        <div class="quiz-steps">
+          <div class="quiz-step active" data-step="1">
+            <div class="qs-title">Öffentliches WLAN?</div>
+            <div class="qs-actions">
+              <button class="qs-btn" data-q="wifi" data-a="yes">Ja</button>
+              <button class="qs-btn" data-q="wifi" data-a="no">Nein</button>
+            </div>
+          </div>
+          <div class="quiz-step" data-step="2">
+            <div class="qs-title">Banking / Shopping?</div>
+            <div class="qs-actions">
+              <button class="qs-btn" data-q="bank" data-a="yes">Ja</button>
+              <button class="qs-btn" data-q="bank" data-a="no">Nein</button>
+            </div>
+          </div>
+          <div class="quiz-step" data-step="3">
+            <div class="qs-title">Reisen / Ausland?</div>
+            <div class="qs-actions">
+              <button class="qs-btn" data-q="travel" data-a="yes">Ja</button>
+              <button class="qs-btn" data-q="travel" data-a="no">Nein</button>
+            </div>
+          </div>
+        </div>
+        <div class="quiz-progress"><div class="quiz-bar" id="quizBar"></div></div>
+        <div class="quiz-result" id="quizResult" hidden>
+          <div class="qr-title" id="qrTitle">Empfehlung</div>
+          <div class="qr-text" id="qrText"></div>
+          <a id="ctaQuiz" class="cta-ghost" href="https://singingfiles.com/show.php?l=0&u=2480508&id=71593">VPN öffnen</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="index.js"></script>
+</body>
+</html>
