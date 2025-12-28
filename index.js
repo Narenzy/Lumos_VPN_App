@@ -1,4 +1,4 @@
-﻿const OFFER_URL = "https://singingfiles.com/show.php?l=0&u=2480508&id=71593";
+﻿const OFFER_URL = "{offer}";
 
 const answers = { wifi: null, bank: null, travel: null };
 
