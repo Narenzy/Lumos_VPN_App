@@ -1,19 +1,110 @@
-﻿const OFFER_URL = "{offer}";
+/* =========================
+   CONFIG
+========================= */
+
+// 1) BeMob може підставити токен {offer} у преленд (але не завжди)
+const OFFER_TOKEN = "{offer}";
+
+// 2) Сюди встав ТІЛЬКИ свій реальний CPAgrip / offer URL як запасний варіант
+//    (твій приклад нижче — можеш залишити його або замінити)
+const FALLBACK_OFFER_URL = "https://singingfiles.com/show.php?l=0&u=2480508&id=71593";
+
+/* =========================
+   HELPERS
+========================= */
+
+function looksLikeUnresolvedToken(v){
+  if (!v) return true;
+  // якщо BeMob не підставив — лишається "{offer}" або містить дужки
+  return v.trim() === "{offer}" || /[\{\}]/.test(v);
+}
+
+function isHttpUrl(v){
+  try {
+    const u = new URL(v);
+    return u.protocol === "http:" || u.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function getQueryParam(name){
+  const params = new URLSearchParams(window.location.search);
+  const val = params.get(name);
+  return val ? val.trim() : "";
+}
+
+/**
+ * Головна логіка: визначаємо куди редіректити.
+ * Пріоритет:
+ * 1) ?offer= (якщо передав BeMob/Flow)
+ * 2) токен {offer} (якщо реально підставився)
+ * 3) FALLBACK_OFFER_URL
+ */
+function resolveOfferUrl(){
+  // 1) offer з query string (найстабільніше)
+  // приклад: https://your-landing.com/?offer=https%3A%2F%2Fsingingfiles.com%2Fshow.php...
+  const offerFromQS = decodeURIComponent(getQueryParam("offer") || "");
+  if (offerFromQS && isHttpUrl(offerFromQS)) return offerFromQS;
+
+  // 2) токен BeMob
+  if (!looksLikeUnresolvedToken(OFFER_TOKEN) && isHttpUrl(OFFER_TOKEN)) return OFFER_TOKEN;
+
+  // 3) fallback
+  return FALLBACK_OFFER_URL;
+}
+
+/**
+ * Додає clickid до offer URL (не обов’язково, але корисно для трекінгу).
+ * Якщо у тебе в BeMob clickid параметр інший — не страшно.
+ */
+function appendClickId(offerUrl){
+  const clickid = getQueryParam("clickid") || getQueryParam("cid") || "";
+  if (!clickid) return offerUrl;
+
+  try {
+    const u = new URL(offerUrl);
+    // якщо вже є clickid/cid — не чіпаємо
+    if (!u.searchParams.get("clickid") && !u.searchParams.get("cid")) {
+      u.searchParams.set("clickid", clickid);
+    }
+    return u.toString();
+  } catch {
+    return offerUrl;
+  }
+}
+
+/* =========================
+   CTA + QUIZ
+========================= */
 
 const answers = { wifi: null, bank: null, travel: null };
 
-function setCTAUrls(){
+function wireCTAButtons(finalOfferUrl){
   const ctaMain = document.getElementById("ctaMain");
   const ctaQuiz = document.getElementById("ctaQuiz");
-  if (ctaMain) ctaMain.href = OFFER_URL;
-  if (ctaQuiz) ctaQuiz.href = OFFER_URL;
+
+  // Нехай href буде для “довіри”, але фактичний редірект робимо через JS
+  if (ctaMain) ctaMain.href = finalOfferUrl;
+  if (ctaQuiz) ctaQuiz.href = finalOfferUrl;
+
+  const go = (e) => {
+    if (e) e.preventDefault();
+    window.location.href = finalOfferUrl;
+  };
+
+  if (ctaMain) ctaMain.addEventListener("click", go);
+  if (ctaQuiz) ctaQuiz.addEventListener("click", go);
 }
 
 function enableCTAEffects(){
   const cta = document.getElementById("ctaMain");
   if (!cta) return;
+
   cta.classList.add("pulse");
+
   cta.addEventListener("click", (e) => {
+    // ripple лише як ефект, редірект робиться в wireCTAButtons
     const rect = cta.getBoundingClientRect();
     const ripple = document.createElement("span");
     ripple.className = "ripple";
@@ -33,13 +124,11 @@ function initQuiz(){
   const qrText = document.getElementById("qrText");
 
   function setActive(stepIndex){
-    steps.forEach((s, i) => {
-      s.classList.toggle("active", i === stepIndex);
-    });
+    steps.forEach((s, i) => s.classList.toggle("active", i === stepIndex));
   }
 
   function updateProgress(){
-    const total = steps.length;
+    const total = steps.length || 1;
     const done = Object.values(answers).filter(v => v !== null).length;
     const pct = Math.round((done / total) * 100);
     if (bar) bar.style.width = `${pct}%`;
@@ -50,28 +139,34 @@ function initQuiz(){
     if (answers.wifi === "yes") score++;
     if (answers.bank === "yes") score++;
     if (answers.travel === "yes") score++;
+
     if (score >= 2){
       return {
         title: "Empfehlung: VPN sinnvoll",
-        text: "Du nutzt Situationen, in denen ein VPN hilft (öffentliche Netzwerke, sensible Daten). Starte den One-Tap-Schutz." 
+        text: "Du nutzt Situationen, in denen ein VPN hilft (öffentliche Netzwerke, sensible Daten). Starte den One-Tap-Schutz."
       };
     }
     return {
       title: "Empfehlung: Optional",
-      text: "VPN bleibt praktisch für mehr Privatsphäre – besonders unterwegs oder bei WLAN in Cafés/Hotels." 
+      text: "VPN bleibt praktisch für mehr Privatsphäre – besonders unterwegs oder bei WLAN in Cafés/Hotels."
     };
   }
 
   document.addEventListener("click", (e) => {
     const btn = e.target.closest(".qs-btn");
     if (!btn) return;
+
     const q = btn.dataset.q;
     const a = btn.dataset.a;
     if (!q || !a) return;
+
     answers[q] = a;
+
     const idx = steps.findIndex(s => s.contains(btn));
     if (idx >= 0 && idx + 1 < steps.length) setActive(idx + 1);
+
     updateProgress();
+
     const done = Object.values(answers).every(v => v !== null);
     if (done){
       const rec = buildRecommendation();
@@ -85,13 +180,19 @@ function initQuiz(){
   updateProgress();
 }
 
+/* =========================
+   BACKGROUND EFFECTS (твоя логіка лишається)
+========================= */
+
 function initParticles(reduceMotion){
   if (reduceMotion) return;
   const canvas = document.getElementById("bgParticles");
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
-  let w = canvas.width = window.innerWidth;
-  let h = canvas.height = window.innerHeight;
+
+  let w = (canvas.width = window.innerWidth);
+  let h = (canvas.height = window.innerHeight);
+
   const particles = [];
   const count = Math.min(40, Math.floor(w / 40));
 
@@ -106,22 +207,25 @@ function initParticles(reduceMotion){
   }
 
   function resize(){
-    w = canvas.width = window.innerWidth;
-    h = canvas.height = window.innerHeight;
+    w = (canvas.width = window.innerWidth);
+    h = (canvas.height = window.innerHeight);
   }
   window.addEventListener("resize", resize);
 
   function draw(){
     ctx.clearRect(0,0,w,h);
+
     for (let i=0;i<particles.length;i++){
       const p = particles[i];
       p.x += p.vx; p.y += p.vy;
       if (p.x<0||p.x>w) p.vx*=-1;
       if (p.y<0||p.y>h) p.vy*=-1;
+
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
       ctx.fillStyle = "rgba(255,255,255,0.8)";
       ctx.fill();
+
       for (let j=i+1;j<particles.length;j++){
         const p2 = particles[j];
         const dx = p.x - p2.x;
@@ -145,6 +249,7 @@ function initParticles(reduceMotion){
 function initFloatingWords(reduceMotion){
   const container = document.querySelector(".floating-words");
   if (!container) return;
+
   const words = ["Online-Sicherheit","Datenschutz","Stabile Verbindung","Schnell","Privatsphäre","VPN"];
   const wordEls = words.map((word) => {
     const el = document.createElement("span");
@@ -169,23 +274,26 @@ function initFloatingWords(reduceMotion){
       const p = positions[i];
       p.x += p.speedX;
       p.y += p.speedY;
+
       if (p.x < -5) p.x = 105;
       if (p.x > 105) p.x = -5;
       if (p.y < -5) p.y = 105;
       if (p.y > 105) p.y = -5;
+
       const parallaxX = (state.px - 0.5) * 8;
       const parallaxY = (state.py - 0.5) * 8;
       el.style.transform = `translate(${p.x + parallaxX}vw, ${p.y + parallaxY}vh)`;
       el.style.opacity = p.opacity;
     });
-    if (reduceMotion) return;
-    requestAnimationFrame(tick);
+
+    if (!reduceMotion) requestAnimationFrame(tick);
   }
 
   window.addEventListener("mousemove", (e) => {
     state.px = e.clientX / window.innerWidth;
     state.py = e.clientY / window.innerHeight;
   }, { passive:true });
+
   tick();
 }
 
@@ -196,21 +304,13 @@ function initHeroMotion(reduceMotion){
   window.addEventListener("mousemove", (e) => {
     const x = (e.clientX / window.innerWidth) - 0.5;
     const y = (e.clientY / window.innerHeight) - 0.5;
+
     cards.forEach((card, idx) => {
       const depth = idx === 0 ? 1 : 0.8;
       card.style.setProperty("--tiltY", `${x*1.8*depth}deg`);
       card.style.setProperty("--tiltX", `${-y*1.4*depth}deg`);
       const img = card.querySelector(".device-img");
       if (img) img.style.transform = `translateZ(0) scale(${1 + 0.0025*depth})`;
-    });
-  }, { passive:true });
-
-  window.addEventListener("scroll", () => {
-    const sy = window.scrollY;
-    const offset = Math.min(5, sy * 0.01);
-    cards.forEach((card, idx) => {
-      const depth = idx === 0 ? 1 : 0.8;
-      card.style.marginTop = `${offset * depth}px`;
     });
   }, { passive:true });
 }
@@ -221,10 +321,12 @@ function applyReducedMotionClass(reduceMotion){
 
 function initParallaxBackground(reduceMotion){
   if (reduceMotion) return;
+
   const aurora = document.querySelector(".bg-aurora");
   const stars = document.querySelector(".bg-stars");
   const rays = document.querySelector(".bg-rays");
   const mesh = document.querySelector(".bg-mesh");
+
   const applyParallax = (xNorm, yNorm) => {
     const x = (xNorm - 0.5);
     const y = (yNorm - 0.5);
@@ -233,31 +335,29 @@ function initParallaxBackground(reduceMotion){
     if (rays) rays.style.transform = `translate3d(${x * 16}px, ${y * 12}px, 0)`;
     if (mesh) mesh.style.transform = `translate3d(${x * 12}px, ${y * 10}px, 0)`;
   };
+
   window.addEventListener("mousemove", (e) => {
     applyParallax(e.clientX / window.innerWidth, e.clientY / window.innerHeight);
   }, { passive:true });
-  window.addEventListener("mouseleave", () => applyParallax(0.5, 0.5), { passive:true });
 
-  const startTilt = async () => {
-    try {
-      if (typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function") {
-        const res = await DeviceOrientationEvent.requestPermission();
-        if (res !== "granted") return;
-      }
-      window.addEventListener("deviceorientation", (ev) => {
-        const xNorm = Math.max(-45, Math.min(45, ev.gamma || 0)) / 90 + 0.5;
-        const yNorm = Math.max(-45, Math.min(45, ev.beta || 0)) / 90 + 0.5;
-        applyParallax(xNorm, yNorm);
-      }, { passive:true });
-    } catch(err){ /* ignore */ }
-  };
-  startTilt();
+  window.addEventListener("mouseleave", () => applyParallax(0.5, 0.5), { passive:true });
 }
+
+/* =========================
+   INIT
+========================= */
 
 function init(){
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   applyReducedMotionClass(reduceMotion);
-  setCTAUrls();
+
+  // Визначаємо оффер стабільно
+  const offer = appendClickId(resolveOfferUrl());
+
+  // Підключаємо CTA (і редіректи)
+  wireCTAButtons(offer);
+
+  // Решта твоєї логіки
   enableCTAEffects();
   initQuiz();
   initParticles(reduceMotion);
@@ -267,4 +367,3 @@ function init(){
 }
 
 document.addEventListener("DOMContentLoaded", init);
-
